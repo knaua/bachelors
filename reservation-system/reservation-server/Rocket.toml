@@ -1,0 +1,2 @@
+[default.databases.main]
+url = "jdbc:sqlite:main.sqlite"
