@@ -1,18 +1,17 @@
+use rocket_db_pools::Database;
+use rocket_db_pools::sqlx::{query, SqliteConnection, SqlitePool};
 
-use rocket_db_pools::sqlx;
-use rocket_db_pools::sqlx::Connection;
-use crate::Db;
+#[derive(Database, Debug)]
+#[database("main")]
+pub struct Db(SqlitePool);
 
-async fn read(mut db: Box<dyn Connection<Database=Db, Options=()>>) {
-    let x = sqlx::query("SELECT * FROM devices WHERE available = 1")
-        .fetch_all(&mut *db).await;
-
-    let y = x.unwrap();
-
-    println!("{:?}", y)
-
+/// Returns the number of available devices from the database
+pub async fn count_devices_from_db(conn: &mut SqliteConnection){ // TODO change return type and catch possible unwrap error
+    let qr = query("SELECT * FROM devices WHERE available=1").fetch_all(&mut *conn).await.unwrap();
+    println!("{:?}", qr.iter().count()); // count the actual number of rows "with available devices"
 }
 
-fn write() {
+/// Adds a new device (or even credentials) to the database
+fn _write() {
 
 }

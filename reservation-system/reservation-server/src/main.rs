@@ -10,22 +10,19 @@ use rocket::response::content::RawText;
 use rocket::tokio::fs::{self, File};
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
-use rocket_db_pools::{sqlx, Database};
+use rocket_db_pools::{Connection, Database};
+use crate::db_manager::{read_db, Db};
 
 const _ID_LENGTH: usize = 4;
 pub const AVAILABLE_DEVICES: u8 = 5;
 //const HOST: Absolute<'static> = uri!("http://localhost:8000");
 
-#[derive(Database)]
-#[database("main")]
-pub struct Db(sqlx::SqlitePool);
-
 // TODO Maybe change type of 'devices' and 'minutes' to u8 so parsing from string isn't necessary anymore -> currently keeping it as string is easier from the client side for testing
 #[derive(Deserialize, Debug)]
 pub struct BookingData {
     devices: String,
-    minutes: String,
-    team: String,
+    _minutes: String,
+    _team: String,
 }
 
 #[post("/reservation", format = "json", data = "<booking_info>")]
@@ -42,6 +39,11 @@ async fn reserve(booking_info: Json<BookingData>) -> std::io::Result<String>{
     /* Open the Data from the request and check it, then act accordingly to the available resources */
     println! ("{:?}", book(booking_info.0));
     Ok("worked".to_string())
+}
+
+#[post("/devices_available")]
+async fn number_of_devices(mut db: Connection<Db>){
+    count_devices_from_db(&mut db).await;
 }
 
 #[get("/<id>")] //TODO: Authentication Data Check to retrieve the Data
@@ -72,9 +74,9 @@ fn index() -> &'static str {
 }
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
     rocket::build()
         .attach(Db::init())
-        .mount("/", routes![index, retrieve, reserve, delete])
+        .mount("/", routes![index, retrieve, reserve, delete, number_of_devices])
 }
 

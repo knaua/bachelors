@@ -6,7 +6,7 @@ use reqwest::Client;
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
     let url = "http://127.0.0.1:8000/reservation";
-    println!("Client request: {}", url);
+    //println!("Client request: {}", url);
     let _id = "http://127.0.0.1:8000/";
 
     let _booking_data = [("devices", "3"), ("minutes", "120"), ("team_name", "makoo")];
@@ -43,14 +43,17 @@ async fn main() -> Result<(), reqwest::Error> {
 
 
     let client = Client::new();
-    let res = client.post(url)
+    /*let res = client.post(url)
         .json(&map)
         .send()
-        .await?;
+        .await?;*/
 
     //println!("{:?}", map);
 
-    println!("body: {}", res.text().await?);
+    //println!("body: {}", res.text().await?);
+
+    let res = client.post("http://127.0.0.1:8000/devices_available")
+        .send().await?;
 
     Ok(())
 }
