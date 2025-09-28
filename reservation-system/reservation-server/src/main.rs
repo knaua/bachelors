@@ -11,9 +11,11 @@ use rocket::tokio::fs::{self, File};
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use rocket_db_pools::{Connection, Database};
-use crate::db_manager::{read_db, Db};
+use crate::db_manager::{count_devices_from_db, Db};
 
 const _ID_LENGTH: usize = 4;
+
+/// Test value, to be used instead of the available devices noted in the database
 pub const AVAILABLE_DEVICES: u8 = 5;
 //const HOST: Absolute<'static> = uri!("http://localhost:8000");
 
@@ -21,13 +23,12 @@ pub const AVAILABLE_DEVICES: u8 = 5;
 #[derive(Deserialize, Debug)]
 pub struct BookingData {
     devices: String,
-    _minutes: String,
-    _team: String,
+    minutes: String,
+    team: String,
 }
 
-#[post("/reservation", format = "json", data = "<booking_info>")]
-async fn reserve(booking_info: Json<BookingData>) -> std::io::Result<String>{
-
+#[post("/reservation", format = "json", data = "<data>")]
+async fn reserve(data: Json<BookingData>, mut db: Connection<Db>) -> std::io::Result<String>{
 
     //TODO Saving information to a file might be helpful later
     //TODO Credentials could also be stored in a database like the (number of) devices
@@ -37,12 +38,14 @@ async fn reserve(booking_info: Json<BookingData>) -> std::io::Result<String>{
     Ok(id.to_string())*/
 
     /* Open the Data from the request and check it, then act accordingly to the available resources */
-    println! ("{:?}", book(booking_info.0));
+    // Number of available devices
+    let x = count_devices_from_db(&mut db).await;
+    println! ("{:?}", book(data.0, x));
     Ok("worked".to_string())
 }
 
-#[post("/devices_available")]
-async fn number_of_devices(mut db: Connection<Db>){
+#[post("/devices_available")] // not used currently, getting number of devices was relocated into the booking process post request handler
+async fn _number_of_devices(mut db: Connection<Db>){
     count_devices_from_db(&mut db).await;
 }
 
@@ -77,6 +80,6 @@ fn index() -> &'static str {
 async fn rocket() -> _ {
     rocket::build()
         .attach(Db::init())
-        .mount("/", routes![index, retrieve, reserve, delete, number_of_devices])
+        .mount("/", routes![index, retrieve, reserve, delete])
 }
 

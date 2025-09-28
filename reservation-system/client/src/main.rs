@@ -37,23 +37,23 @@ async fn main() -> Result<(), reqwest::Error> {
     // Post as JSON   // ID from first use: eXNH
 
     let mut map = HashMap::new();
-    map.insert("devices", "7");
+    map.insert("devices", "1");
     map.insert("minutes", "90");
     map.insert("team","okamo");
 
 
     let client = Client::new();
-    /*let res = client.post(url)
+    let res = client.post(url)
         .json(&map)
         .send()
-        .await?;*/
+        .await?;
 
     //println!("{:?}", map);
 
     //println!("body: {}", res.text().await?);
 
-    let res = client.post("http://127.0.0.1:8000/devices_available")
-        .send().await?;
+    /*let res = client.post("http://127.0.0.1:8000/devices_available")
+        .send().await?;*/
 
     Ok(())
 }
