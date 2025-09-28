@@ -2,6 +2,7 @@
 
 mod paste_ids;
 mod booking_process;
+mod db_manager;
 
 use paste_ids::PasteId;
 use booking_process::book;
@@ -17,7 +18,7 @@ pub const AVAILABLE_DEVICES: u8 = 5;
 
 #[derive(Database)]
 #[database("main")]
-struct Db(sqlx::SqlitePool);
+pub struct Db(sqlx::SqlitePool);
 
 // TODO Maybe change type of 'devices' and 'minutes' to u8 so parsing from string isn't necessary anymore -> currently keeping it as string is easier from the client side for testing
 #[derive(Deserialize, Debug)]
