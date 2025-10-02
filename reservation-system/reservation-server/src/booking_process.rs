@@ -3,7 +3,7 @@ use crate::{BookingData, AVAILABLE_DEVICES};
 
 
 /// Book the in the request specified number of devices and return the credentials to access them if possible, or an error if the request is not processable
-// TODO Return the proper values, i. e. the credentials or an error
+// TODO Return the proper values, i. e. the credentials or a proper error
 pub fn book(data: BookingData, devices_available: u8) -> String /*  Result<String, Err(T)> */ {
 
     /* Check if there are enough devices available, if not return error message */
@@ -34,7 +34,8 @@ pub fn book(data: BookingData, devices_available: u8) -> String /*  Result<Strin
 }
 
 /// Parse the devices field from the JSON input to check if it matches a number
-fn parse_and_check(devices: String) -> Result<u8, ParseIntError> {
+// Now also used to parse the value used to represent the State of a device in the database
+pub fn parse_and_check(devices: String) -> Result<u8, ParseIntError> {
     let x = match devices.parse::<u8>(){
         Ok(x) => x,
         Err(e) => return Err(e),
@@ -52,7 +53,6 @@ fn request_possible (x: u8, y: u8) -> bool{
 
 #[deprecated]
 /// Get the number of available devices located in the network
-//TODO Return type may change later
 async fn _number_of_devices() -> u8 {
     // dummy value for testing
     AVAILABLE_DEVICES

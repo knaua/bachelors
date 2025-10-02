@@ -6,7 +6,7 @@ use rand::{self};
 use rocket::request::FromParam;
 use rand::prelude::IndexedRandom;
 
-// Except impl Display, all code from the rocket pastebin code example
+// Except impl Display, all code from the rocket pastebin code example so far
 
 /// A _probably_ unique paste ID.
 #[derive(UriDisplayPath)]
@@ -32,7 +32,7 @@ impl PasteId<'_> {
     /// Returns the path to the paste in `upload/` corresponding to this ID.
     pub fn file_path(&self) -> PathBuf {
         let root = concat!(env!("CARGO_MANIFEST_DIR"), "/", "upload");
-        Path::new(root).join(self.0.as_ref())
+        Path::new(root).join(self.0.as_ref()) // no idea how to fix this, and why this compiles despite it being marked as an error
     }
 }
 
