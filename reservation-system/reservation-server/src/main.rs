@@ -3,6 +3,7 @@
 mod paste_ids;
 mod booking_process;
 mod db_manager;
+mod cred;
 
 use paste_ids::PasteId;
 use booking_process::book;
@@ -11,6 +12,7 @@ use rocket::tokio::fs::{self, File};
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use rocket_db_pools::{Connection, Database};
+use tokio::task;
 use crate::db_manager::{count_devices_from_db, write_into_db, Db};
 
 const _ID_LENGTH: usize = 4;
@@ -70,6 +72,9 @@ async fn _number_of_devices(mut db: Connection<Db>){
     count_devices_from_db(&mut db).await;
 }
 
+#[post("/test_change_available", format = "json", data = "<data>")]
+async fn test_change_available(data: Json<DeviceData>, mut db: Connection<Db>) {}
+
 #[get("/<id>")] // not currently in use, maybe if work with a file system is used in the future
 async fn retrieve(id: PasteId<'_>) -> Option<RawText<File>> {
     File::open(id.file_path()).await.map(RawText).ok()
@@ -81,7 +86,7 @@ async fn delete(id: PasteId<'_>) -> Option<()> {
 }
 
 
-#[get("/")]
+#[get("/index")]
 fn index() -> &'static str {
     "
     USAGE

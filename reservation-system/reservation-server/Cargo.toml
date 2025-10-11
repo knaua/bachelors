@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 local-ip-address = "0.6.5"
 rand = "0.9.2"
-rocket = { version = "0.5.1", features = ["json"] }
+rocket = { version = "0.5.1", features = ["json", "secrets", "tls"] }
 serde = "1.0.226"
 tokio = "1.47.1"
 

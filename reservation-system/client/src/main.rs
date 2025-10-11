@@ -47,9 +47,9 @@ async fn main() -> Result<(), reqwest::Error> {
     println!("{:?}", map);
 
     let client = Client::new();
-    let res = client.post(add_device) //client.post(url)
-        //.json(&map) // map for the booking request
-        .json(&new_device) // map for adding a new device to the database
+    let res = /*client.post(add_device)*/ client.post(url)
+        .json(&map) // map for the booking request
+        //.json(&new_device) // map for adding a new device to the database
         .send()
         .await?;
 
