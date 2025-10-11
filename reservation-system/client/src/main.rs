@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use reqwest::Client;
+use reqwest::{Client, get};
 
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
@@ -7,6 +7,7 @@ async fn main() -> Result<(), reqwest::Error> {
     let add_device = "http://127.0.0.1:8000/add_me";
     let _id = "http://127.0.0.1:8000/";
     let _booking_data = [("devices", "3"), ("minutes", "120"), ("team_name", "makoo")];
+    let index = "http://192.168.178.55:8000/index";
 
     // Post as form
     /*
@@ -20,15 +21,15 @@ async fn main() -> Result<(), reqwest::Error> {
     */
 
     // Get Data of certain ID (Data created with post over body)
-    /*
-    let body = get([id,"MIT2"].join(""))
+
+    let body = get(index)
         .await?
         .text()
         .await?;
     //let info = body.split('=').collect::<Vec<&str>>();
     println!("body: {}", body);
     //println!("body: {:?}", info);
-    */
+
 
 
     // Post as JSON   // ID from first use: eXNH
@@ -46,12 +47,13 @@ async fn main() -> Result<(), reqwest::Error> {
 
     println!("{:?}", map);
 
+    /*
     let client = Client::new();
     let res = /*client.post(add_device)*/ client.post(url)
         .json(&map) // map for the booking request
         //.json(&new_device) // map for adding a new device to the database
         .send()
-        .await?;
+        .await?; */
 
     Ok(())
 }
