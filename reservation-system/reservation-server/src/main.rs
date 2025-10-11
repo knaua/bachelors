@@ -3,7 +3,7 @@
 mod paste_ids;
 mod booking_process;
 mod db_manager;
-mod cred;
+//mod cred;
 
 use paste_ids::PasteId;
 use booking_process::book;
