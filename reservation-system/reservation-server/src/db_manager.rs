@@ -1,7 +1,6 @@
 use rocket_db_pools::{sqlx, Database};
-use rocket_db_pools::sqlx::{query, SqliteConnection, SqlitePool};
-use rocket_db_pools::sqlx::sqlite::SqliteQueryResult;
-use rocket::http::{Cookie, CookieJar};
+use rocket_db_pools::sqlx::{query, Connection, Error, Row, SqliteConnection, SqlitePool};
+use rocket_db_pools::sqlx::sqlite::SqliteRow;
 use crate::DeviceData;
 use crate::booking_process::parse_and_check; // Doesn't feel right to do it this way, maybe this needs to be in another crate apart from the booking process,
                                              // something called 'utility' maybe?
@@ -13,6 +12,7 @@ pub struct Db(SqlitePool);
 //TODO Restrict access to the Database, no one should be able to make calls to the database without permission
 // currently anyone could just add, remove or change entries if the URIs are known...
 // Then the devices would need to acquire credentials
+
 
 /// Returns the number of available devices from the database
 pub async fn count_devices_from_db(conn: &mut SqliteConnection) -> u8{ // TODO change return type and catch possible unwrap error
@@ -37,7 +37,7 @@ pub async fn write_into_db(data: DeviceData, conn: &mut SqliteConnection) -> Res
     Ok(())
 }
 
-async fn make_available(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+async fn _make_available(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     //TODO make new parameter to call the function, or make different functions for changing 'available' to either 1 or 0? Change function name then accordingly
     // Do I need the devices IP-Address for anything in particular? I probably need a function to change the IP-Address as well?
     let _result = query("UPDATE test\
@@ -47,4 +47,30 @@ async fn make_available(data: DeviceData, conn: &mut SqliteConnection) -> Result
         .execute(conn)
         .await;
     Ok(())
+}
+
+pub async fn get_login(user: &str, pw: &str) -> Result<(String, String), Error>{ // TODO ENCRYPT/HASH PASSWORDS!!!
+    let mut co: SqliteConnection = SqliteConnection::connect("main.sqlite").await?;
+    let result = query("SELECT * FROM users WHERE id = ?").bind(user.to_string()).fetch_one(&mut co).await?;
+    let credentials: (String, String) = (result.get("id"), result.get("password"));
+    println!("{:?}",credentials);
+    println!("{:?}{:?}", user, pw);
+    if  credentials.1 == pw && credentials.0 == user{
+        Ok(credentials)
+    } else {
+        Err(Error::RowNotFound)
+    }
+
+}
+
+pub async fn get_user(user: &str) -> Result<SqliteRow, Error>{ // TODO ENCRYPT/HASH PASSWORDS!!!
+    let mut co: SqliteConnection = SqliteConnection::connect("main.sqlite").await?;
+    let result = query("SELECT * FROM users WHERE id = ?").bind(user.to_string()).fetch_one(&mut co).await?;
+    let id: String = result.get("id");
+    if  id == user{
+        Ok(result)
+    } else {
+        Err(Error::RowNotFound)
+    }
+
 }

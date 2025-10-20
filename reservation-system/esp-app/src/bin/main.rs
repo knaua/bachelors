@@ -83,10 +83,18 @@ async fn main(spawner: Spawner) {
         net_seed,
     );
 
+    //let x = esp_wifi::wifi::WifiDevice::mac_address();
+    //println!("{:?}", x);
+
     spawner.spawn(connection(controller)).ok();
     spawner.spawn(net_task(runner)).ok();
 
     wait_for_connection(stack).await;
+
+    let mut mac_address: [u8; 6] = [0; 6];
+    wifi::sta_mac(&mut mac_address);
+    println!("STA MAC: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+             mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
 
     access_website(stack, tls_seed).await
 }
@@ -151,6 +159,7 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
+/// Make a get request to the specified URI
 async fn access_website(stack: Stack<'_>, tls_seed: u64) {
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
@@ -169,11 +178,13 @@ async fn access_website(stack: Stack<'_>, tls_seed: u64) {
     let mut buffer = [0u8; 4096];
     let mut http_req = client
         .request(
-            reqwless::request::Method::GET,
-            "http://192.168.178.55:8000/index",//"https://jsonplaceholder.typicode.com/posts/1",
-        )
+            reqwless::request::Method::POST,
+            "http://192.168.178.55:8000/esp")
         .await
         .unwrap();
+
+    // TODO include data in the post request for the server to read
+
     let response = http_req.send(&mut buffer).await.unwrap();
 
     info!("Got response");

@@ -3,7 +3,7 @@
 mod paste_ids;
 mod booking_process;
 mod db_manager;
-//mod cred;
+mod cred;
 
 use paste_ids::PasteId;
 use booking_process::book;
@@ -12,14 +12,11 @@ use rocket::tokio::fs::{self, File};
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use rocket_db_pools::{Connection, Database};
-use tokio::task;
+use rocket_dyn_templates::{Template, context};
+
 use crate::db_manager::{count_devices_from_db, write_into_db, Db};
 
 const _ID_LENGTH: usize = 4;
-
-/// Test value, to be used instead of the available devices noted in the database
-pub const AVAILABLE_DEVICES: u8 = 5;
-//const HOST: Absolute<'static> = uri!("http://localhost:8000");
 
 //TODO Maybe change type of 'devices' and 'minutes' to u8 so parsing from string isn't necessary anymore
 // -> currently keeping it as string is easier from the client side for testing
@@ -57,12 +54,6 @@ async fn reserve(data: Json<BookingData>, mut db: Connection<Db>) -> std::io::Re
 
 /// Adds a new device to the Database of available devices
 #[post("/add_me", format = "json", data = "<data>")]
-//TODO as this request should come from the ESPs, this probably needs to accept CBOR Data,
-// however, the regular text could be utilized, although it probably needs to be able to decode what the ESP sent
-// This also probably needs to be able to accept CoAP requests
-//CoAP Functionality might prove to be problem, at least ESP32 seem powerful enough to handle HTTP, maybe JSON as well?
-//Still, CoAP support would be nice, but it doesn't seem like rocket is compatible with that
-//This might need another Host/Proxy/Gateway to relay and translate CoAP requests
 async fn add_device(data: Json<DeviceData>, mut db: Connection<Db>) /*-> std::io::Result<String>*/ {
     let _ = write_into_db(data.0, &mut db).await;
 }
@@ -72,8 +63,8 @@ async fn _number_of_devices(mut db: Connection<Db>){
     count_devices_from_db(&mut db).await;
 }
 
-#[post("/test_change_available", format = "json", data = "<data>")]
-async fn test_change_available(data: Json<DeviceData>, mut db: Connection<Db>) {}
+//#[post("/test_change_available", format = "json", data = "<data>")]
+//async fn _test_change_available(data: Json<DeviceData>, mut db: Connection<Db>) {}
 
 #[get("/<id>")] // not currently in use, maybe if work with a file system is used in the future
 async fn retrieve(id: PasteId<'_>) -> Option<RawText<File>> {
@@ -81,13 +72,13 @@ async fn retrieve(id: PasteId<'_>) -> Option<RawText<File>> {
 }
 
 #[delete("/<id>")] // not currently in use, maybe if work with a file system is used in the future
-async fn delete(id: PasteId<'_>) -> Option<()> {
+async fn _delete(id: PasteId<'_>) -> Option<()> {
     fs::remove_file(id.file_path()).await.ok()
 }
 
 
-#[get("/index")]
-fn index() -> &'static str {
+#[get("/home")]
+fn home() -> &'static str {
     "
     USAGE
 
@@ -102,10 +93,18 @@ fn index() -> &'static str {
     "
 }
 
+#[get("/")] // Do I need templates and HTML pages? They could make some things easier, at least for administrative stuff, I reckon
+fn index() -> Template {
+    Template::render("index", context! { field: "value" })
+}
+
+
 #[launch]
 async fn rocket() -> _ {
     rocket::build()
         .attach(Db::init())
-        .mount("/", routes![index, retrieve, reserve, delete, add_device])
+        .attach(Template::fairing())
+        .mount("/", routes![index, home, retrieve, reserve, add_device])
+        .mount("/login", cred::routes())
 }
 

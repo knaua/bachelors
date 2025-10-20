@@ -22,13 +22,21 @@ async fn main() -> Result<(), reqwest::Error> {
 
     // Get Data of certain ID (Data created with post over body)
 
+    /*
     let body = get(index)
         .await?
         .text()
         .await?;
     //let info = body.split('=').collect::<Vec<&str>>();
     println!("body: {}", body);
-    //println!("body: {:?}", info);
+    //println!("body: {:?}", info); */
+
+    let body = get("http://127.0.0.1:8000/usr")
+        .await?
+        .text()
+        .await?;
+    //let info = body.split('=').collect::<Vec<&str>>();
+    println!("user: {}", body);
 
 
 

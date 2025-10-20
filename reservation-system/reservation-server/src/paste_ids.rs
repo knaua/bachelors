@@ -17,8 +17,9 @@ impl PasteId<'_> {
     /// the characters used are from the sets [0-9], [A-Z], [a-z]. The
     /// probability of a collision depends on the value of `size` and the number
     /// of IDs generated thus far.
-    pub fn _new(size: usize) -> PasteId<'static> {
-        const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    pub fn new(size: usize) -> PasteId<'static> {
+        //const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        const BASE62: &[u8] = b"0123456789";
 
         let mut id = String::with_capacity(size);
         let mut rng = rand::rng();

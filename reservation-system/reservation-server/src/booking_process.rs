@@ -1,5 +1,5 @@
 use std::num::ParseIntError;
-use crate::{BookingData, AVAILABLE_DEVICES};
+use crate::BookingData;
 
 
 /// Book the in the request specified number of devices and return the credentials to access them if possible, or an error if the request is not processable
@@ -49,11 +49,4 @@ fn request_possible (x: u8, y: u8) -> bool{
 
     /* Update the number of available devices */
     // Here? or in another function?
-}
-
-#[deprecated]
-/// Get the number of available devices located in the network
-async fn _number_of_devices() -> u8 {
-    // dummy value for testing
-    AVAILABLE_DEVICES
 }
