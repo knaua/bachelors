@@ -3,37 +3,31 @@
 
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_net::dns::DnsSocket;
-use embassy_net::tcp::client::{TcpClient, TcpClientState};
-use embassy_net::{DhcpConfig, Runner, Stack, StackResources};
+use embassy_net::{Stack, DhcpConfig, Runner, StackResources};
 use embassy_time::{Duration, Timer};
+use esp_wifi::wifi;
+use esp_wifi::EspWifiController;
+use esp_wifi::wifi::{WifiController, WifiEvent, Configuration, WifiDevice, WifiState};
 use esp_hal::clock::CpuClock;
 use esp_hal::rng::Rng;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println as _;
 use esp_println::println;
-use esp_wifi::wifi::{self, WifiController, WifiDevice, WifiEvent, WifiState};
-use esp_wifi::EspWifiController;
-use reqwless::client::{HttpClient, TlsConfig};
+
+
+use http as lib;
+
+
+use crate::lib::mk_static;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-extern crate alloc;
-
-// If you are okay with using a nightly compiler, you can use the macro provided by the static_cell crate: https://docs.rs/static_cell/2.1.0/static_cell/macro.make_static.html
-macro_rules! mk_static {
-    ($t:ty,$val:expr) => {{
-        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
-        #[deny(unused_attributes)]
-        let x = STATIC_CELL.uninit().write(($val));
-        x
-    }};
-}
-
 esp_bootloader_esp_idf::esp_app_desc!();
+
+extern crate alloc;
 
 const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
@@ -65,11 +59,14 @@ async fn main(spawner: Spawner) {
         esp_wifi::init(timer1.timer0, rng.clone()).unwrap()
     );
 
+
+
+
     let (controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
     let wifi_interface = interfaces.sta;
 
     let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
-    let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
+    //let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
 
     let dhcp_config = DhcpConfig::default();
     // dhcp_config.hostname = Some(String::from_str("implRust").unwrap());
@@ -83,20 +80,34 @@ async fn main(spawner: Spawner) {
         net_seed,
     );
 
-    //let x = esp_wifi::wifi::WifiDevice::mac_address();
-    //println!("{:?}", x);
-
     spawner.spawn(connection(controller)).ok();
     spawner.spawn(net_task(runner)).ok();
 
     wait_for_connection(stack).await;
 
+    /*
+    // Print the MAC-Address of the device for testing purposes
     let mut mac_address: [u8; 6] = [0; 6];
     wifi::sta_mac(&mut mac_address);
     println!("STA MAC: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-             mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
+             mac_address[0], mac_address[1], mac_address[2], mac_address[3], mac_address[4], mac_address[5]); */
 
-    access_website(stack, tls_seed).await
+    //access_website(stack, tls_seed).await */
+
+
+    //let stack = lib::wifi::start_wifi(esp_wifi_ctrl, peripherals.WIFI, rng, &spawner).await;
+
+    let web_app = lib::web::WebApp::default();
+    for id in 0..lib::web::WEB_TASK_POOL_SIZE {
+        spawner.must_spawn(lib::web::web_task(
+            id,
+            stack,
+            web_app.router,
+            web_app.config,
+        ));
+    }
+    info!("Web server started...");
+
 }
 
 async fn wait_for_connection(stack: Stack<'_>) {
@@ -159,6 +170,7 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
+/*
 /// Make a get request to the specified URI
 async fn access_website(stack: Stack<'_>, tls_seed: u64) {
     let mut rx_buffer = [0; 4096];
@@ -193,3 +205,4 @@ async fn access_website(stack: Stack<'_>, tls_seed: u64) {
     let content = core::str::from_utf8(res).unwrap();
     println!("{}", content);
 }
+ */

@@ -16,8 +16,6 @@ use rocket_dyn_templates::{Template, context};
 
 use crate::db_manager::{count_devices_from_db, write_into_db, Db};
 
-const _ID_LENGTH: usize = 4;
-
 //TODO Maybe change type of 'devices' and 'minutes' to u8 so parsing from string isn't necessary anymore
 // -> currently keeping it as string is easier from the client side for testing
 #[derive(Deserialize, Debug)]
@@ -93,7 +91,7 @@ fn home() -> &'static str {
     "
 }
 
-#[get("/")] // Do I need templates and HTML pages? They could make some things easier, at least for administrative stuff, I reckon
+#[get("/")]
 fn index() -> Template {
     Template::render("index", context! { field: "value" })
 }

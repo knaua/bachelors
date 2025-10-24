@@ -20,10 +20,9 @@ pub async fn count_devices_from_db(conn: &mut SqliteConnection) -> u8{ // TODO c
     result.iter().count() as u8
 }
 
-/// Adds a new device (or even credentials) to the database
+/// Adds a new device to the database
 pub async fn write_into_db(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     /* Take incoming data and write it into the database. Check for duplicate MAC-/IP-Addresses and/or catch the resulting error */
-    //TODO Make sure that the supplied MAC- and IP-Addresses really are those and not some random String
     //TODO Check for double entries and catch resulting errors appropriately
     //TODO Add 'create table if not exists'?
     let x = parse_and_check(data.available);
@@ -53,8 +52,6 @@ pub async fn get_login(user: &str, pw: &str) -> Result<(String, String), Error>{
     let mut co: SqliteConnection = SqliteConnection::connect("main.sqlite").await?;
     let result = query("SELECT * FROM users WHERE id = ?").bind(user.to_string()).fetch_one(&mut co).await?;
     let credentials: (String, String) = (result.get("id"), result.get("password"));
-    println!("{:?}",credentials);
-    println!("{:?}{:?}", user, pw);
     if  credentials.1 == pw && credentials.0 == user{
         Ok(credentials)
     } else {

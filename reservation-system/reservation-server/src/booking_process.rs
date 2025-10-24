@@ -7,14 +7,14 @@ use crate::BookingData;
 pub fn book(data: BookingData, devices_available: u8) -> String /*  Result<String, Err(T)> */ {
 
     /* Check if there are enough devices available, if not return error message */
-    let x = parse_and_check(data.devices);
+    let devices_requested = parse_and_check(data.devices);
 
-    if x.is_err() {
+    if devices_requested.is_err() {
         // TODO Better error messages
        return "Error, not a number".to_string()
     }
 
-    if !request_possible(x.unwrap(),devices_available) {
+    if !request_possible(devices_requested.unwrap(),devices_available) {
         // TODO Better error messages
         return "Not enough devices available".to_string()
     }
