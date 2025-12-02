@@ -46,9 +46,9 @@ async fn reserve(data: Json<BookingData>, mut db: Connection<Db>) -> std::io::Re
     /* Open the Data from the request and check it, then act accordingly to the available resources */
     // Number of available devices
     let x = count_devices_from_db(&mut db).await;
-    println! ("{:?}", book(data.0, x));
-    Ok("worked".to_string())
-}
+    Ok(book(data.0, x)) // directly gives the output of the booking process
+    //Ok("key\nip\nsomethingelse\n".to_string()) //appropriately puts these strings out in a new line each
+    }
 
 /// Adds a new device to the Database of available devices
 #[post("/add_me", format = "json", data = "<data>")]

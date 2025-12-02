@@ -11,12 +11,12 @@ pub fn book(data: BookingData, devices_available: u8) -> String /*  Result<Strin
 
     if devices_requested.is_err() {
         // TODO Better error messages
-       return "Error, not a number".to_string()
+       return "Error, not a number\n".to_string()
     }
 
     if !request_possible(devices_requested.unwrap(),devices_available) {
         // TODO Better error messages
-        return "Not enough devices available".to_string()
+        return "Not enough devices available\n".to_string()
     }
 
     /* Start the booking process:
@@ -30,7 +30,7 @@ pub fn book(data: BookingData, devices_available: u8) -> String /*  Result<Strin
     let _unused_for_now = (data.minutes, data.team);
     /* TODO something with minutes and team */
 
-    "credentials go here".to_string()
+    "credentials go here\n".to_string()
 }
 
 /// Parse the devices field from the JSON input to check if it matches a number
