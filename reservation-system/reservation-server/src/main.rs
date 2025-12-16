@@ -1,79 +1,81 @@
 #[macro_use] extern crate rocket;
 
-mod paste_ids;
 mod booking_process;
 mod db_manager;
 mod cred;
 
-use paste_ids::PasteId;
+
 use booking_process::book;
-use rocket::response::content::RawText;
-use rocket::tokio::fs::{self, File};
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use rocket_db_pools::{Connection, Database};
 use rocket_dyn_templates::{Template, context};
 
-use crate::db_manager::{count_devices_from_db, write_into_db, Db};
+use crate::db_manager::{add_interface_to_db, add_device_to_db, Db};
+use crate::db_manager::change_availability;
 
-//TODO Maybe change type of 'devices' and 'minutes' to u8 so parsing from string isn't necessary anymore
-// -> currently keeping it as string is easier from the client side for testing
 #[derive(Deserialize, Debug)]
-pub struct BookingData {
-    devices: String,
-    minutes: String,
-    team: String,
+pub struct _BookingData {
+    _devices: String,
+    _minutes: String,
+    _team: String,
 }
 
+// Does this all make sense for the devices (ESP32), they should already be initialized with the interfaces port it is connected to
 #[derive(Deserialize, Debug)]
 pub struct DeviceData{
     mac_address: String,
-    ip_address: String,
+    ip_address: String, // this may also be irrelevant, I'm unsure about that however
+    interface_port: String, // we probably don't need this for the ESP32
+    interface_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct InterfaceData{
+    id: String,
+    port: String,
+    host_public_key: String,
     available: String,
 }
 
-#[post("/reservation", format = "json", data = "<data>")]
-async fn reserve(data: Json<BookingData>, mut db: Connection<Db>) -> std::io::Result<String>{
+#[derive(Deserialize, Debug)]
+pub struct PeerPubKey {
+    public_key: String,
+}
 
-    //TODO adjust return type to something more accommodating to the response of a post request
-    //TODO Saving information to a file might be helpful later
-    //TODO Credentials could also be stored in a database like the (number of) devices
-    /*let id = PasteId::new(ID_LENGTH);
-    booking_info.open(128.kibibytes()).into_file(id.file_path()).await?;
-    //Ok(uri!(HOST, retrieve(id)).to_string())
-    Ok(id.to_string())*/
+#[post("/reservation", format = "json", data = "<data>")]
+async fn reserve(data: Json<PeerPubKey>, db: Connection<Db>) -> String { //Result<String>{
 
     /* Open the Data from the request and check it, then act accordingly to the available resources */
     // Number of available devices
-    let x = count_devices_from_db(&mut db).await;
-    Ok(book(data.0, x)) // directly gives the output of the booking process
+    //let available_devices = count_devices_from_db(&mut db).await;
+
+    book(data.0, db).await // directly gives the output of the booking process
     //Ok("key\nip\nsomethingelse\n".to_string()) //appropriately puts these strings out in a new line each
     }
 
 /// Adds a new device to the Database of available devices
-#[post("/add_me", format = "json", data = "<data>")]
+#[post("/add_device", format = "json", data = "<data>")]
 async fn add_device(data: Json<DeviceData>, mut db: Connection<Db>) /*-> std::io::Result<String>*/ {
-    let _ = write_into_db(data.0, &mut db).await;
+    let _ = add_device_to_db(data.0, &mut db).await;
 }
 
-#[post("/devices_available")] // not used currently, getting number of devices was relocated into the booking process post request handler
-async fn _number_of_devices(mut db: Connection<Db>){
-    count_devices_from_db(&mut db).await;
+#[post("/add_interface", format = "json", data = "<data>")]
+async fn add_interface(data: Json<InterfaceData>, mut db: Connection<Db>) /*-> std::io::Result<String>*/ {
+    let _ = add_interface_to_db(data.0, &mut db).await;
 }
 
-//#[post("/test_change_available", format = "json", data = "<data>")]
-//async fn _test_change_available(data: Json<DeviceData>, mut db: Connection<Db>) {}
-
-#[get("/<id>")] // not currently in use, maybe if work with a file system is used in the future
-async fn retrieve(id: PasteId<'_>) -> Option<RawText<File>> {
-    File::open(id.file_path()).await.map(RawText).ok()
+// Only for testing
+#[post("/avai")]
+async fn avai(mut db: Connection<Db>) /*-> std::io::Result<String>*/ {
+    let _ = change_availability("intf1".to_string(), true, &mut db).await;
 }
 
-#[delete("/<id>")] // not currently in use, maybe if work with a file system is used in the future
-async fn _delete(id: PasteId<'_>) -> Option<()> {
-    fs::remove_file(id.file_path()).await.ok()
+// Only for testing
+#[post("/unavai")]
+async fn unavai(mut db: Connection<Db>) /*-> std::io::Result<String>*/ {
+    let _ = change_availability("intf1".to_string(), false, &mut db).await;
 }
-
 
 #[get("/home")]
 fn home() -> &'static str {
@@ -102,7 +104,7 @@ async fn rocket() -> _ {
     rocket::build()
         .attach(Db::init())
         .attach(Template::fairing())
-        .mount("/", routes![index, home, retrieve, reserve, add_device])
+        .mount("/", routes![index, home, reserve, add_device, add_interface, avai, unavai])
         .mount("/login", cred::routes())
 }
 
