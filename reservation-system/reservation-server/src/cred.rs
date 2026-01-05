@@ -62,9 +62,9 @@ macro_rules! session_uri {
 pub use session_uri as uri;
 
 
-#[get("/hi")]
+#[get("/homepage")]
 fn index(user: User) -> Template {
-    Template::render("hi", context! {
+    Template::render("homepage", context! {
         user_id: user.id,
     })
 }
@@ -79,7 +79,7 @@ fn login_page(flash: Option<FlashMessage<'_>>) -> Template {
     Template::render("login", &flash)
 }
 
-#[get("/admin")] // TODO currently reachable with any user as a proper admin flag check is missing
+#[get("/admin")]
 fn admin(_admin: Admin)-> RawHtml<&'static str> {
     RawHtml(r#"You're an Admin!"#)
 }

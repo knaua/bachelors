@@ -2,7 +2,6 @@ use rocket_db_pools::{sqlx, Database};
 use rocket_db_pools::sqlx::{query, Connection, Error, Row, SqliteConnection, SqlitePool};
 use rocket_db_pools::sqlx::sqlite::SqliteRow;
 use crate::{DeviceData, InterfaceData};
-use crate::booking_process::parse_and_check_u8;
 
 
 #[derive(Database, Debug)]
@@ -23,7 +22,8 @@ pub async fn count_interfaces_from_db(conn: &mut SqliteConnection) -> u8{ // TOD
 pub async fn add_device_to_db(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     //TODO Check for double entries and catch resulting errors appropriately
     //TODO Add 'create table if not exists'?
-    let _result = query("INSERT INTO devices (mac_address, ip_address, interface_port, interface_id) VALUES (?1, ?2, ?3, ?4)")
+    let _result = query("INSERT INTO devices (mac_address, ip_address, interface_port, interface_id)\
+    VALUES (?1, ?2, ?3, ?4)")
         .bind(data.mac_address)
         .bind(data.ip_address)
         .bind(data.interface_port)
@@ -36,21 +36,31 @@ pub async fn add_device_to_db(data: DeviceData, conn: &mut SqliteConnection) -> 
 /// Adds a new interface to the database
 pub async fn add_interface_to_db(data: InterfaceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     //TODO Check for double entries and catch resulting errors appropriately
-    //TODO Add 'create table if not exists'?
-    let x = parse_and_check_u8(data.available);
-    let _result = query("INSERT INTO interfaces (id, port, host_public_key, available)\
-    VALUES (?1, ?2, ?3, ?4)")
-        .bind(data.id)
+    let _result = query("INSERT INTO interfaces (interface_id, ip_address, port, host_public_key, available)\
+    VALUES (?1, ?2, ?3, ?4, ?5)")
+        .bind(data.interface_id)
+        .bind(data.ip_address)
         .bind(data.port)
         .bind(data.host_public_key)
-        .bind(x.unwrap())
+        .bind(data.available)
+        .execute(conn)
+        .await;
+    Ok(())
+}
+
+/// Adds a new peer by its public key and the interface it is connected to
+pub async fn add_peer_to_db(id: &String, key: String, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let _result = query("INSERT INTO peers (interface_id, peer_public_key)\
+    VALUES (?1, ?2)")
+        .bind(&id)
+        .bind(key)
         .execute(conn)
         .await;
     Ok(())
 }
 
 /// Change the availability of an interface
-pub async fn change_availability(id: String, available: bool, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+pub async fn change_availability(id: &String, available: bool, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     let x = match available {
         true => 1,
         false => 0,
@@ -58,10 +68,40 @@ pub async fn change_availability(id: String, available: bool, conn: &mut SqliteC
     
     let _result = query("UPDATE interfaces SET available=?1 WHERE id=?2")
         .bind(x)
-        .bind(id)
+        .bind(&id)
         .execute(conn)
         .await;
     Ok(())
+}
+
+/// Retrieves a vector of all available interfaces
+pub async fn _retrieve_interfaces(conn: &mut SqliteConnection) -> Vec<InterfaceData>{
+    let result = query("SELECT * FROM interfaces WHERE available=1").fetch_all(&mut *conn).await.unwrap();
+    let mut interface_vector: Vec<InterfaceData> = vec![];
+
+    for i in 0..result.len() {
+        let x = InterfaceData {
+            interface_id: result.get(i).unwrap().get(0),
+            ip_address: result.get(i).unwrap().get(1),
+            port: result.get(i).unwrap().get(2),
+            host_public_key: result.get(i).unwrap().get(3),
+            available: result.get(i).unwrap().get(4) };
+        interface_vector.push(x);
+    };
+     interface_vector
+}
+
+/// Retrieves the first available interface
+pub async fn retrieve_first_interface(conn: &mut SqliteConnection) -> InterfaceData{
+    let result = query("SELECT * FROM interfaces WHERE available=1").fetch_all(&mut *conn).await.unwrap();
+    let mut interface = InterfaceData {
+        interface_id: result.get(0).unwrap().get(0),
+        ip_address: result.get(0).unwrap().get(1),
+        port: result.get(0).unwrap().get(2),
+        host_public_key: result.get(0).unwrap().get(3),
+        available: result.get(0).unwrap().get(4)
+    };
+    interface
 }
 
 
