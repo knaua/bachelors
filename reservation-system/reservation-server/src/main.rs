@@ -2,7 +2,7 @@
 
 mod booking_process;
 mod db_manager;
-mod cred;
+//mod cred;
 
 
 use booking_process::book;
@@ -11,9 +11,9 @@ use rocket::serde::json::Json;
 use rocket_db_pools::{Connection, Database};
 use rocket_dyn_templates::{Template, context};
 
-use crate::db_manager::{add_interface_to_db, add_device_to_db, Db};
+use crate::db_manager::{add_interface_to_db, add_device_to_db, Db, };
 // Remove later, these functions are only callable from here for testing
-use crate::db_manager::{change_availability, retrieve_first_interface};
+use crate::db_manager::{remove_peer_from_interface};
 
 
 #[derive(Deserialize, Debug)]
@@ -65,38 +65,9 @@ async fn add_interface(data: Json<InterfaceData>, mut db: Connection<Db>) /*-> s
     let _ = add_interface_to_db(data.0, &mut db).await;
 }
 
-// Only for testing
-#[post("/avai")]
-async fn avai(mut db: Connection<Db>) {
-    let _ = change_availability(&"intf1".to_string(), true, &mut db).await;
-}
-
-// Only for testing
-#[post("/unavai")]
-async fn unavai(mut db: Connection<Db>) {
-    let _ = change_availability(&"intf1".to_string(), false, &mut db).await;
-}
-
-// Only for testing
-#[post("/getall")]
-async fn getall(mut db: Connection<Db>) {
-    let _ = retrieve_first_interface(&mut db).await;
-}
-
-#[get("/home")]
-fn home() -> &'static str {
-    "
-    USAGE
-
-      POST /
-
-          accepts raw data in the body of the request and responds with a URL of
-          a page containing the body's content
-
-      GET /<id>
-
-          retrieves the content for the paste with id `<id>`
-    "
+#[post("/remove_peer", format = "json", data = "<data>")]
+async fn remove_peer(data: Json<PeerPubKey>, mut db: Connection<Db>)  {
+    let _ = remove_peer_from_interface(data.0, &mut db).await;
 }
 
 #[get("/")]
@@ -110,7 +81,7 @@ async fn rocket() -> _ {
     rocket::build()
         .attach(Db::init())
         .attach(Template::fairing())
-        .mount("/", routes![index, home, reserve, add_device, add_interface, avai, unavai, getall])
-        .mount("/login", cred::routes())
+        .mount("/", routes![index, reserve, add_device, add_interface, remove_peer])
+        //.mount("/login", cred::routes())
 }
 

@@ -1,7 +1,7 @@
 use rocket_db_pools::{sqlx, Database};
 use rocket_db_pools::sqlx::{query, Connection, Error, Row, SqliteConnection, SqlitePool};
 use rocket_db_pools::sqlx::sqlite::SqliteRow;
-use crate::{DeviceData, InterfaceData};
+use crate::{DeviceData, InterfaceData, PeerPubKey};
 
 
 #[derive(Database, Debug)]
@@ -21,7 +21,6 @@ pub async fn count_interfaces_from_db(conn: &mut SqliteConnection) -> u8{ // TOD
 /// Adds a new device to the database
 pub async fn add_device_to_db(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     //TODO Check for double entries and catch resulting errors appropriately
-    //TODO Add 'create table if not exists'?
     let _result = query("INSERT INTO devices (mac_address, ip_address, interface_port, interface_id)\
     VALUES (?1, ?2, ?3, ?4)")
         .bind(data.mac_address)
@@ -49,11 +48,20 @@ pub async fn add_interface_to_db(data: InterfaceData, conn: &mut SqliteConnectio
 }
 
 /// Adds a new peer by its public key and the interface it is connected to
-pub async fn add_peer_to_db(id: &String, key: String, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+pub async fn add_peer_to_db(id: &String, key: &String, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     let _result = query("INSERT INTO peers (interface_id, peer_public_key)\
     VALUES (?1, ?2)")
         .bind(&id)
-        .bind(key)
+        .bind(&key)
+        .execute(conn)
+        .await;
+    Ok(())
+}
+
+/// Removes a peer from the interface it is connected to
+pub async fn remove_peer_from_interface(peer: PeerPubKey, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let _result = query("DELETE FROM peers WHERE peer_public_key = ?1")
+        .bind(peer.public_key)
         .execute(conn)
         .await;
     Ok(())
@@ -94,7 +102,7 @@ pub async fn _retrieve_interfaces(conn: &mut SqliteConnection) -> Vec<InterfaceD
 /// Retrieves the first available interface
 pub async fn retrieve_first_interface(conn: &mut SqliteConnection) -> InterfaceData{
     let result = query("SELECT * FROM interfaces WHERE available=1").fetch_all(&mut *conn).await.unwrap();
-    let mut interface = InterfaceData {
+    let interface = InterfaceData {
         interface_id: result.get(0).unwrap().get(0),
         ip_address: result.get(0).unwrap().get(1),
         port: result.get(0).unwrap().get(2),
@@ -104,13 +112,8 @@ pub async fn retrieve_first_interface(conn: &mut SqliteConnection) -> InterfaceD
     interface
 }
 
-
-// TODO Functions to retrieve specific data, e.g. the public key and the ip address of a single interface
-// can this efficiently be done in a single function? Or do I need multiple functions for that?
-// should at least be doable per table...
-
-/// Check if the provided user and password match the user's id and his password (TODO hash)
-pub async fn get_login(user: &str, pw: &str) -> Result<(String, String), Error>{ // TODO ENCRYPT/HASH PASSWORDS!!!
+/// Check if the provided user and password match the user's id and his password
+pub async fn _get_login(user: &str, pw: &str) -> Result<(String, String), Error>{ // TODO ENCRYPT/HASH PASSWORDS!!!
     let mut co: SqliteConnection = SqliteConnection::connect("main.sqlite").await?;
     let result = query("SELECT * FROM users WHERE id = ?").bind(user.to_string()).fetch_one(&mut co).await?;
     let credentials: (String, String) = (result.get("id"), result.get("password"));
@@ -123,7 +126,7 @@ pub async fn get_login(user: &str, pw: &str) -> Result<(String, String), Error>{
 }
 
 /// Check if the provided user id exists in the database
-pub async fn get_user(user: &str) -> Result<SqliteRow, Error>{ // TODO ENCRYPT/HASH PASSWORDS!!!
+pub async fn _get_user(user: &str) -> Result<SqliteRow, Error>{ // TODO ENCRYPT/HASH PASSWORDS!!!
     let mut co: SqliteConnection = SqliteConnection::connect("main.sqlite").await?;
     let result = query("SELECT * FROM users WHERE id = ?").bind(user.to_string()).fetch_one(&mut co).await?;
     let id: String = result.get("id");

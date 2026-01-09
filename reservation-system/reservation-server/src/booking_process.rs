@@ -1,5 +1,5 @@
-//use std::process::Command;
-use crate::{InterfaceData, PeerPubKey};
+use std::process::Command;
+use crate::PeerPubKey;
 use crate::db_manager::{add_peer_to_db, change_availability, count_interfaces_from_db, retrieve_first_interface, Db};
 use rocket_db_pools::Connection;
 
@@ -32,11 +32,11 @@ pub async fn book(peer: PeerPubKey, mut db: Connection<Db>) -> String /*  Result
 
     let interface = retrieve_first_interface(&mut db).await;
 
-    //change_availability(&interface.interface_id, false, &mut db).await.expect("TODO: panic message");
-    println!("availability was changed");
+    change_availability(&interface.interface_id, false, &mut db).await.expect("TODO: panic message");
+    // println!("availability was changed");
 
-    //add_peer_to_db(&interface.interface_id, peer.public_key, &mut db).await.expect("TODO: panic message");
-    println!("peer was added to the db");
+    add_peer_to_db(&interface.interface_id, &peer.public_key, &mut db).await.expect("TODO: panic message");
+    // println!("peer was added to the db"); // used for simple testing so the DB doesn't get filled while manually testing
 
     // TODO Get the interfaces IP-Address to create a new IP-Address for the peer from it
 
@@ -45,21 +45,22 @@ pub async fn book(peer: PeerPubKey, mut db: Connection<Db>) -> String /*  Result
     // Constructs the IP-Address for the Peer. This assumes that all interfaces have an IP-Address in the form of "xx.0.0.x/24" where xx is in the range from 10-99,
     // use 24 as the subnet mask and that no device connected to the interface has the ip-address "xx.0.0.5/24"
     let slice =  &ip_address[0..2];
-    let mut slice_as_value = slice.to_string();
+    let slice_as_value = slice.to_string();
     let peer_ip_address = [slice_as_value,".0.0.5".to_string()].join("");
 
     // starts the interface, but currently we only want to add peers to already running interfaces
-    // wg-quick requires the root password when called
-    /*Command::new("wg-quick")
+    // this method would require additional functionality that changes the WireGuard interface configuration files manually
+    /*Command::new("sudo")
+        .arg("wg-quick")
         .arg("up")
         .arg(&interface.interface_id.as_str()) // name of the interface to start
         .spawn()
         .expect("failed to execute process");*/
 
     // add a peer to a running interface
-    // operation is not permitted due to lack of permissions
-    // TODO Find a method to add a new peer to an existing interface automatically without the need for user input
-    /*Command::new("wg")
+    // this needs to be done with sudo due to WireGuard, for this work the 'wg' command needs to be added to sudoers
+    Command::new("sudo")
+        .arg("wg")
         .arg("set")
         .arg(&interface.interface_id.as_str())
         .arg("peer")
@@ -67,7 +68,7 @@ pub async fn book(peer: PeerPubKey, mut db: Connection<Db>) -> String /*  Result
         .arg("allowed-ips")
         .arg(peer_ip_address.clone()+"/32")
         .spawn()
-        .expect("failed to execute process");*/
+        .expect("failed to execute process");
 
     // peer_ip_address needs to be appended with the subnet mask of the chosen interface
     // for testing purposes all interfaces received the subnet mask 24 upon configuration
@@ -83,3 +84,4 @@ pub async fn book(peer: PeerPubKey, mut db: Connection<Db>) -> String /*  Result
 fn request_possible (needed_devices: u8, available_interfaces: u8) -> bool{
     needed_devices <= available_interfaces
 }
+

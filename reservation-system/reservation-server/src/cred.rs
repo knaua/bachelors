@@ -9,7 +9,7 @@ use rocket::response::content::RawHtml;
 use rocket_db_pools::sqlx::Row;
 use crate::db_manager::{get_login, get_user};
 
-// TODO PASSWORDS ARE STORED IN PLAIN TEXT CURRENTLY! CHANGE TO HASH
+// TODO PASSWORDS ARE STORED IN PLAINTEXT CURRENTLY! CHANGE TO HASH
 
 #[derive(FromForm)]
 struct Login<'r> {
