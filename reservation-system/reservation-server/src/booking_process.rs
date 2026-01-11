@@ -32,11 +32,11 @@ pub async fn book(peer: PeerPubKey, mut db: Connection<Db>) -> String /*  Result
 
     let interface = retrieve_first_interface(&mut db).await;
 
-    change_availability(&interface.interface_id, false, &mut db).await.expect("TODO: panic message");
-    // println!("availability was changed");
+    //change_availability(&interface.interface_id, false, &mut db).await.expect("TODO: panic message");
+    println!("availability was changed");
 
-    add_peer_to_db(&interface.interface_id, &peer.public_key, &mut db).await.expect("TODO: panic message");
-    // println!("peer was added to the db"); // used for simple testing so the DB doesn't get filled while manually testing
+    //add_peer_to_db(&interface.interface_id, &peer.public_key, &mut db).await.expect("TODO: panic message");
+    println!("peer was added to the db"); // used for simple testing so the DB doesn't get filled while manually testing
 
     // TODO Get the interfaces IP-Address to create a new IP-Address for the peer from it
 
