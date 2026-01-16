@@ -1,18 +1,18 @@
 use rocket_db_pools::{sqlx, Database};
 use rocket_db_pools::sqlx::{query, Connection, Error, Row, SqliteConnection, SqlitePool};
 use rocket_db_pools::sqlx::sqlite::SqliteRow;
-use crate::{DeviceData, InterfaceData, PeerPubKey};
+use crate::{ConnectedPeer, DeviceData, InterfaceData};
 
 
 #[derive(Database, Debug)]
 #[database("main")]
 pub struct Db(SqlitePool);
 
-// TODO Restrict access to the Database, no one should be able to make calls to the database without permission
-// currently anyone could just add, remove or change entries if the URIs are known...
+// TODO Restrict access to the Database, no one should be able to make requests to the database without permission
+// currently anyone could just add, remove or change entries if the URIs are known
 
 
-/// Returns the number of available devices from the database
+/// Returns the number of available interfaces from the database
 pub async fn count_interfaces_from_db(conn: &mut SqliteConnection) -> u8{ // TODO change return type and catch possible unwrap error
     let result = query("SELECT * FROM interfaces WHERE available=1").fetch_all(&mut *conn).await.unwrap();
     result.iter().count() as u8
@@ -21,10 +21,9 @@ pub async fn count_interfaces_from_db(conn: &mut SqliteConnection) -> u8{ // TOD
 /// Adds a new device to the database
 pub async fn add_device_to_db(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     //TODO Check for double entries and catch resulting errors appropriately
-    let _result = query("INSERT INTO devices (mac_address, ip_address, interface_port, interface_id)\
-    VALUES (?1, ?2, ?3, ?4)")
+    let _result = query("INSERT INTO devices (mac_address, interface_port, interface_id)\
+    VALUES (?1, ?2, ?3)")
         .bind(data.mac_address)
-        .bind(data.ip_address)
         .bind(data.interface_port)
         .bind(data.interface_id)
         .execute(conn)
@@ -48,9 +47,10 @@ pub async fn add_interface_to_db(data: InterfaceData, conn: &mut SqliteConnectio
 }
 
 /// Adds a new peer by its public key and the interface it is connected to
-pub async fn add_peer_to_db(id: &String, key: &String, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+pub async fn add_peer_to_db(name: &String, id: &String, key: &String, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     let _result = query("INSERT INTO peers (interface_id, peer_public_key)\
-    VALUES (?1, ?2)")
+    VALUES (?1, ?2, ?3)")
+        .bind(&name)
         .bind(&id)
         .bind(&key)
         .execute(conn)
@@ -59,23 +59,20 @@ pub async fn add_peer_to_db(id: &String, key: &String, conn: &mut SqliteConnecti
 }
 
 /// Removes a peer from the interface it is connected to
-pub async fn remove_peer_from_interface(peer: PeerPubKey, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
-    let _result = query("DELETE FROM peers WHERE peer_public_key = ?1")
-        .bind(peer.public_key)
+pub async fn remove_peer_from_interface(peer: ConnectedPeer, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let _result = query("DELETE FROM peers WHERE interface_id = ?1")
+        .bind(peer.interface_id)
         .execute(conn)
         .await;
     Ok(())
 }
 
 /// Change the availability of an interface
-pub async fn change_availability(id: &String, available: bool, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
-    let x = match available {
-        true => 1,
-        false => 0,
-    };
-    
+pub async fn change_availability(id: &String, bool: bool, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
+    let available: u8 = parse_available(bool);
+
     let _result = query("UPDATE interfaces SET available=?1 WHERE id=?2")
-        .bind(x)
+        .bind(available)
         .bind(&id)
         .execute(conn)
         .await;
@@ -101,7 +98,9 @@ pub async fn _retrieve_interfaces(conn: &mut SqliteConnection) -> Vec<InterfaceD
 
 /// Retrieves the first available interface
 pub async fn retrieve_first_interface(conn: &mut SqliteConnection) -> InterfaceData{
-    let result = query("SELECT * FROM interfaces WHERE available=1").fetch_all(&mut *conn).await.unwrap();
+    let result = query("SELECT * FROM interfaces WHERE available=1")
+        .fetch_all(&mut *conn)
+        .await.unwrap();
     let interface = InterfaceData {
         interface_id: result.get(0).unwrap().get(0),
         ip_address: result.get(0).unwrap().get(1),
@@ -110,6 +109,28 @@ pub async fn retrieve_first_interface(conn: &mut SqliteConnection) -> InterfaceD
         available: result.get(0).unwrap().get(4)
     };
     interface
+}
+
+/// Retrieve a peer that is currently connected to an interface
+pub async fn retrieve_connected_peer(name: String, conn: &mut SqliteConnection) -> ConnectedPeer{
+    let result = query("SELECT * FROM peers WHERE team_id = ?1")
+        .bind(name)
+        .fetch_one(&mut *conn)
+        .await.unwrap();
+    let peer = ConnectedPeer {
+        interface_id: result.get(0),
+        public_key: result.get(1)
+    };
+    peer
+}
+
+/// Parses a bool to u8 as bool isn't available in SQLite
+fn parse_available(available: bool) -> u8 {
+    let x = match available {
+        true => 1,
+        false => 0,
+    };
+    x
 }
 
 /// Check if the provided user and password match the user's id and his password
@@ -122,7 +143,6 @@ pub async fn _get_login(user: &str, pw: &str) -> Result<(String, String), Error>
     } else {
         Err(Error::RowNotFound)
     }
-
 }
 
 /// Check if the provided user id exists in the database
@@ -135,5 +155,4 @@ pub async fn _get_user(user: &str) -> Result<SqliteRow, Error>{ // TODO ENCRYPT/
     } else {
         Err(Error::RowNotFound)
     }
-
 }
