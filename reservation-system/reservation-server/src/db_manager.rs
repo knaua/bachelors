@@ -21,10 +21,9 @@ pub async fn count_interfaces_from_db(conn: &mut SqliteConnection) -> u8{ // TOD
 /// Adds a new device to the database
 pub async fn add_device_to_db(data: DeviceData, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     //TODO Check for double entries and catch resulting errors appropriately
-    let _result = query("INSERT INTO devices (mac_address, interface_port, interface_id)\
-    VALUES (?1, ?2, ?3)")
+    let _result = query("INSERT INTO devices (mac_address, interface_id)\
+    VALUES (?1, ?2)")
         .bind(data.mac_address)
-        .bind(data.interface_port)
         .bind(data.interface_id)
         .execute(conn)
         .await;

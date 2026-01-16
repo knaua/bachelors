@@ -1,19 +1,19 @@
 use std::process::Command;
-use crate::{BookingData, TeamName};
+use crate::{BookingData, DeviceInterfaceData, TeamName};
 use crate::db_manager::{add_peer_to_db, change_availability, count_interfaces_from_db, remove_peer_from_interface, retrieve_connected_peer, retrieve_first_interface, Db};
 use rocket_db_pools::Connection;
 
 
 /// Book the in the request specified number of devices and return the credentials to access them if possible, or an error if the request is not processable
 // TODO Return a proper error that a client may know the request didn't succeed
-pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String /*  Result<String, Err(T)> */ {
+// TODO Check available IP-Addresses for an interface and assign them dynamically
+pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String {
 
     // For the current capabilities of the system, this could be integrated into retrieve_interfaces, as the currently intended
     // functionality only supports one ESP32 per WireGuard interface. However, this will be kept separate in case of possibly adding
     // functionality for multiple devices in different interfaces later
     let available_interfaces = count_interfaces_from_db(&mut db).await;
     if !request_possible(data.devices, available_interfaces) {
-        // TODO Better error handling
         return "No suitable interface available\nPlease try again later\n".to_string()
     }
 
@@ -39,9 +39,9 @@ pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String 
     /*Command::new("sudo")
         .arg("wg-quick")
         .arg("up")
-        .arg(&interface.interface_id.as_str()) // name of the interface to start
+        .arg(&interface.interface_id.as_str())
         .spawn()
-        .expect("failed to execute process");*/
+        .expect("failed to start the interface");*/
 
     // Add a peer to a running interface
     // This needs to be done with sudo due to WireGuard, for this work the 'wg' command needs to be added to sudoers
@@ -57,10 +57,9 @@ pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String 
         .expect("failed to add peer to interface");
 
     // peer_ip_address needs to be appended with the subnet mask of the chosen interface
-    // for testing purposes all interfaces received the subnet mask 24 upon configuration
+    // for testing purposes all interfaces receive the subnet mask 24 upon configuration
     let interface_credentials = [peer_ip_address+"/24", interface.host_public_key, interface.port].join("\n");
     interface_credentials
-
 }
 
 // TODO create a function that checks the WireGuard public key, if it matches its requirements
@@ -91,5 +90,19 @@ pub async fn end_booking(team: TeamName, mut db: Connection<Db>) {
 
     // Remove the peer from the database
     remove_peer_from_interface(peer, &mut db).await.expect("Couldn't remove the peer from the database");
+}
+
+/// Connect a device to an existing and running interface
+pub async fn connect_device_to_interface(device: DeviceInterfaceData) {
+    Command::new("sudo")
+        .arg("wg")
+        .arg("set")
+        .arg(device.interface_id.as_str())
+        .arg("peer")
+        .arg(device.public_key.as_str())
+        .arg("allowed-ips")
+        .arg(device.wg_ip_address+"/32")
+        .spawn()
+        .expect("failed to add device to interface");
 }
 
