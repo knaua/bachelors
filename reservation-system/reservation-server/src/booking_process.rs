@@ -3,6 +3,7 @@ use crate::{BookingData, DeviceInterfaceData, TeamName};
 use crate::db_manager::{add_peer_to_db, change_availability, count_interfaces_from_db, remove_peer_from_interface, retrieve_connected_peer, retrieve_first_interface, Db};
 use rocket_db_pools::Connection;
 
+static DEVICES: u8 = 1;
 
 /// Book the in the request specified number of devices and return the credentials to access them if possible, or an error if the request is not processable
 // TODO Return a proper error that a client may know the request didn't succeed
@@ -13,8 +14,8 @@ pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String 
     // functionality only supports one ESP32 per WireGuard interface. However, this will be kept separate in case of possibly adding
     // functionality for multiple devices in different interfaces later
     let available_interfaces = count_interfaces_from_db(&mut db).await;
-    if !request_possible(data.devices, available_interfaces) {
-        return "No suitable interface available\nPlease try again later\n".to_string()
+    if !request_possible(DEVICES, available_interfaces) {
+        return "\nNo_suitable_interface_available".to_string()
     }
 
     // Retrieve the first interface of the list of all available interfaces
@@ -67,12 +68,12 @@ pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String 
 
 /// Check that the requested number of devices does not exceed the number of available interfaces
 fn request_possible (needed_devices: u8, available_interfaces: u8) -> bool{
-    needed_devices <= available_interfaces
+    available_interfaces >= needed_devices
 }
 
 /// Ends a running reservation
 pub async fn end_booking(team: TeamName, mut db: Connection<Db>) {
-    let peer = retrieve_connected_peer(team.name, &mut db).await;
+    let peer = retrieve_connected_peer(team.team, &mut db).await;
 
     // Remove the peer from the interface
     Command::new("sudo")

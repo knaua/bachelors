@@ -1,7 +1,7 @@
 use rocket_db_pools::{sqlx, Database};
 use rocket_db_pools::sqlx::{query, Connection, Error, Row, SqliteConnection, SqlitePool};
 use rocket_db_pools::sqlx::sqlite::SqliteRow;
-use crate::{ConnectedPeer, DeviceData, InterfaceData};
+use crate::{ConnectedPeer, DeviceData, DeviceInterfaceData, InterfaceData};
 
 
 #[derive(Database, Debug)]
@@ -47,7 +47,7 @@ pub async fn add_interface_to_db(data: InterfaceData, conn: &mut SqliteConnectio
 
 /// Adds a new peer by its public key and the interface it is connected to
 pub async fn add_peer_to_db(name: &String, id: &String, key: &String, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
-    let _result = query("INSERT INTO peers (interface_id, peer_public_key)\
+    let _result = query("INSERT INTO peers (team_id, interface_id, peer_public_key)\
     VALUES (?1, ?2, ?3)")
         .bind(&name)
         .bind(&id)
@@ -70,7 +70,7 @@ pub async fn remove_peer_from_interface(peer: ConnectedPeer, conn: &mut SqliteCo
 pub async fn change_availability(id: &String, bool: bool, conn: &mut SqliteConnection) -> Result<(), sqlx::Error> {
     let available: u8 = parse_available(bool);
 
-    let _result = query("UPDATE interfaces SET available=?1 WHERE id=?2")
+    let _result = query("UPDATE interfaces SET available=?1 WHERE interface_id=?2")
         .bind(available)
         .bind(&id)
         .execute(conn)
@@ -117,10 +117,29 @@ pub async fn retrieve_connected_peer(name: String, conn: &mut SqliteConnection) 
         .fetch_one(&mut *conn)
         .await.unwrap();
     let peer = ConnectedPeer {
-        interface_id: result.get(0),
-        public_key: result.get(1)
+        interface_id: result.get(1),
+        public_key: result.get(2)
     };
     peer
+}
+
+/// Used for configuring devices over a script, this provides the necessary values to set up a WireGuard interface
+pub async fn retrieve_interface_data(data: DeviceInterfaceData, conn: &mut SqliteConnection) -> String {
+    let result = query("SELECT * FROM interfaces WHERE interface_id = ?1")
+        .bind(data.interface_id)
+        .fetch_one(&mut *conn)
+        .await.unwrap();
+
+    let interface = InterfaceData{
+        interface_id: result.get(0),
+        ip_address: result.get(1),
+        port: result.get(2),
+        host_public_key: result.get(3),
+        available: result.get(4)
+    };
+
+    let result = [interface.host_public_key, interface.port].join("\n");
+    result
 }
 
 /// Parses a bool to u8 as bool isn't available in SQLite
