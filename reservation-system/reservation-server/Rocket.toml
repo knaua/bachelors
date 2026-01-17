@@ -1,5 +1,5 @@
 [default]
-address = "172.26.58.121"
+address = "192.168.178.55"
 
 [default.databases.main]
 url = "main.sqlite"
