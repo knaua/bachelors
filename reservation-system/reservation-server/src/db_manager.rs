@@ -67,8 +67,8 @@ pub async fn remove_peer_from_interface(peer: ConnectedPeer, conn: &mut SqliteCo
 }
 
 /// Change the availability of an interface
-pub async fn change_availability(id: &String, bool: bool, conn: &mut SqliteConnection) -> Result<SqliteQueryResult, sqlx::Error> {
-    let available: u8 = parse_available(bool);
+pub async fn change_availability(id: &String, availability: bool, conn: &mut SqliteConnection) -> Result<SqliteQueryResult, sqlx::Error> {
+    let available: u8 = parse_available(availability);
 
     let result = query("UPDATE interfaces SET available=?1 WHERE interface_id=?2")
         .bind(available)

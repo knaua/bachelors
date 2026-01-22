@@ -1,5 +1,6 @@
 use std::process::Command;
-use crate::{BookingData, DeviceInterfaceData, TeamName};
+use ipnet::Ipv4Net;
+use crate::{BookingData, TeamName};
 use crate::db_manager::{add_peer_to_db, change_availability, count_interfaces_from_db, remove_peer_from_interface, retrieve_connected_peer, retrieve_first_interface, Db};
 use rocket_db_pools::Connection;
 
@@ -21,52 +22,35 @@ pub async fn start_booking(data: BookingData, mut db: Connection<Db>) -> String 
     // Retrieve the first interface of the list of all available interfaces
     // This could use some additional mechanism to guarantee utilization of interfaces that end up lower on the list
     // inside the database simply because of their position in the table.
-
     let interface = retrieve_first_interface(&mut db).await;
 
-    change_availability(&interface.interface_id, false, &mut db).await.expect("Couldn't change the availability of the interface");
-
+    // Add the peer to the database, this currently panics if the team name is already present in the database
     add_peer_to_db(&data.team_name, &interface.interface_id, &data.public_key, &mut db).await.expect("Couldn't create a database entry for the peer");
 
-    let ip_address = interface.ip_address;
+    // Changes the availability of the interface to 0 in the database
+    change_availability(&interface.interface_id, false, &mut db).await.expect("Couldn't change the availability of the interface");
 
-    // Constructs the IP-Address for the Peer. This assumes that all interfaces have an IP-Address in the form of "xx.0.0.x/24" where xx is in the range from 10-99,
-    // use 24 as the subnet mask and that no device connected to the interface has the ip-address "xx.0.0.5/24"
-    let slice =  &ip_address[0..2];
-    let slice_as_value = slice.to_string();
-    let peer_ip_address = [slice_as_value,".0.0.5".to_string()].join("");
+    // Retrieve the interfaces IP-Address and its prefix
+    let ip_address: Ipv4Net = interface.ip_address.parse().unwrap();
+    let prefix = ip_address.prefix_len().to_string();
 
-    // starts the interface, but currently we only want to add peers to already running interfaces
-    /*Command::new("sudo")
-        .arg("wg-quick")
-        .arg("up")
-        .arg(&interface.interface_id.as_str())
-        .spawn()
-        .expect("failed to start the interface");*/
+    // Construct a new IP-Address for the peer to be added
+    // As there currently is no mechanism to check the IP-Addresses already in use in an interface, xxx.xxx.xxx.5 is used for teams
+    let server_ip_address = &ip_address.addr().to_string();
+    let mut peer_ip_address = server_ip_address.split('.').collect::<Vec<&str>>();
+    peer_ip_address.remove(peer_ip_address.len() - 1);
+    peer_ip_address.push("5");
+    let peer_ip_address = peer_ip_address.join(".");
 
     // Add a peer to a running interface
-    // This needs to be done with sudo due to WireGuard, for this work the 'wg' command needs to be added to sudoers
-    Command::new("sudo")
-        .arg("wg")
-        .arg("set")
-        .arg(&interface.interface_id.as_str())
-        .arg("peer")
-        .arg(&data.public_key.as_str())
-        .arg("allowed-ips")
-        .arg(peer_ip_address.clone()+"/32")
-        .spawn()
-        .expect("failed to add peer to interface");
+    wireguard_add_peer(&interface.interface_id, &data.public_key, peer_ip_address.clone());
 
-    // peer_ip_address needs to be appended with the subnet mask of the chosen interface
-    // for testing purposes all interfaces receive the subnet mask 24 upon configuration
-    let interface_credentials = [peer_ip_address+"/24", interface.host_public_key, interface.port].join("\n");
+    let interface_credentials = [peer_ip_address+"/"+&prefix, interface.host_public_key, interface.port].join("\n");
     interface_credentials
 }
 
-// TODO create a function that checks the WireGuard public key, if it matches its requirements
-// If I can find out the specifics of its requirements, probably its length and the '=' at the end are good checkmarks?
-
-/// Check that the requested number of devices does not exceed the number of available interfaces
+/// Check that at least one interface is available
+// This function should later check the number of devices connected to an available interface to properly fulfill a request by the number of needed devices instead
 fn request_possible (needed_devices: u8, available_interfaces: u8) -> bool{
     available_interfaces >= needed_devices
 }
@@ -93,17 +77,18 @@ pub async fn end_booking(team: TeamName, mut db: Connection<Db>) {
     remove_peer_from_interface(peer, &mut db).await.expect("Couldn't remove the peer from the database");
 }
 
-/// Connect a device to an existing and running interface
-pub async fn connect_device_to_interface(device: DeviceInterfaceData) {
+/// Connect a peer to an existing and running interface
+/// For this to be usable change the sudoers file to allow the execution of 'wg' without a password
+pub fn wireguard_add_peer(interface: &str, peer_pub_key: &str, peer_ip_address: String) {
     Command::new("sudo")
         .arg("wg")
         .arg("set")
-        .arg(device.interface_id.as_str())
+        .arg(interface)
         .arg("peer")
-        .arg(device.public_key.as_str())
+        .arg(peer_pub_key)
         .arg("allowed-ips")
-        .arg(device.wg_ip_address+"/32")
+        .arg(peer_ip_address+"/32")
         .spawn()
-        .expect("failed to add device to interface");
+        .expect("failed to add peer to interface");
 }
 
